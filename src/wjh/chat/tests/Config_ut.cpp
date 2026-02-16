@@ -212,7 +212,7 @@ TEST_SUITE("Config")
         REQUIRE(result.has_value());
         REQUIRE(result->temperature.has_value());
         CHECK(atlas::undress(*result->temperature)
-              == doctest::Approx(0.5f));
+              == doctest::Approx(0.5));
     }
 
     TEST_CASE("resolve_config: temperature CLI overrides env")
@@ -227,7 +227,7 @@ TEST_SUITE("Config")
         REQUIRE(result.has_value());
         REQUIRE(result->temperature.has_value());
         CHECK(atlas::undress(*result->temperature)
-              == doctest::Approx(0.9f));
+              == doctest::Approx(0.9));
     }
 
     TEST_CASE("resolve_config: invalid TEMPERATURE")

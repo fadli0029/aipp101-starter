@@ -144,7 +144,7 @@ TEST_SUITE("CommandLine")
         REQUIRE(result.has_value());
         REQUIRE(result->temperature.has_value());
         CHECK(atlas::undress(*result->temperature)
-              == doctest::Approx(0.7f));
+              == doctest::Approx(0.7));
     }
 
     TEST_CASE("Temperature zero is valid")
@@ -156,7 +156,7 @@ TEST_SUITE("CommandLine")
         REQUIRE(result.has_value());
         REQUIRE(result->temperature.has_value());
         CHECK(atlas::undress(*result->temperature)
-              == doctest::Approx(0.0f));
+              == doctest::Approx(0.0));
     }
 
     TEST_CASE("Missing argument for --temperature")
@@ -189,7 +189,7 @@ TEST_SUITE("CommandLine")
         CHECK(*result->model == ModelId{"openai/gpt-4"});
         REQUIRE(result->temperature.has_value());
         CHECK(atlas::undress(*result->temperature)
-              == doctest::Approx(0.5f));
+              == doctest::Approx(0.5));
         REQUIRE(result->max_tokens.has_value());
         CHECK(*result->max_tokens == MaxTokens{1024u});
     }
