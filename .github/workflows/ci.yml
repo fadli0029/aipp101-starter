@@ -17,8 +17,10 @@ jobs:
           - { preset: release-gcc,   compiler: gcc,   version: 13 }
           - { preset: debug-clang,   compiler: clang, version: 18 }
           - { preset: release-clang, compiler: clang, version: 18 }
+          - { preset: debug-clang,   compiler: clang, version: 20 }
+          - { preset: release-clang, compiler: clang, version: 20 }
 
-    name: ${{ matrix.preset }}
+    name: ${{ matrix.preset }} (${{ matrix.compiler }}-${{ matrix.version }})
 
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +40,11 @@ jobs:
       - name: Set up Clang ${{ matrix.version }}
         if: matrix.compiler == 'clang'
         run: |
-          sudo apt-get install -y clang-${{ matrix.version }}
+          if ! apt-cache show clang-${{ matrix.version }} > /dev/null 2>&1; then
+            wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- ${{ matrix.version }}
+          else
+            sudo apt-get install -y clang-${{ matrix.version }}
+          fi
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ matrix.version }} 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ matrix.version }} 100
 
@@ -49,8 +55,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .build/.ccache
-          key: ccache-${{ matrix.preset }}-${{ github.sha }}
-          restore-keys: ccache-${{ matrix.preset }}-
+          key: ccache-${{ matrix.preset }}-${{ matrix.compiler }}${{ matrix.version }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.preset }}-${{ matrix.compiler }}${{ matrix.version }}-
 
       - name: Configure
         run: cmake --preset ${{ matrix.preset }}
