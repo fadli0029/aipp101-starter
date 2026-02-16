@@ -86,8 +86,6 @@ function(create_wjh_compile_options_target)
             -Wredundant-decls
             -Wdouble-promotion
             -Wdate-time
-            -Wsuggest-final-methods
-            -Wsuggest-final-types
             -Wsuggest-override
             -Wduplicated-cond
             -Wmisleading-indentation
