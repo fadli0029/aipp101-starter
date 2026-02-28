@@ -33,12 +33,13 @@ cd "$PROJECT_DIR"
 
 DOCKER_RUN=(docker run --rm -it
     -u "$(id -u):$(id -g)"
+    -e CHAT_APP_DIR="/workspace/.build/docker-debug-clang/src/wjh/apps/chat"
     -v "$PROJECT_DIR:/workspace"
     "$IMAGE"
 )
 
 if $SHELL_ONLY; then
-    exec "${DOCKER_RUN[@]}"
+    exec "${DOCKER_RUN[@]}" bash -c 'export PATH="$CHAT_APP_DIR:$PATH" && exec bash'
 else
     exec "${DOCKER_RUN[@]}" bash -c "cmake --preset $PRESET && cmake --build --preset $PRESET && ctest --preset $PRESET"
 fi
