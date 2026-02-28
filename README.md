@@ -82,7 +82,7 @@ A Docker image is provided with a full C++ development environment (compilers, t
    .build/docker-debug-clang/src/wjh/apps/chat/chat_app
    ```
 
-**NOTE:** Docker builds use the `docker-debug` preset, which builds into `.build/docker-debug-clang`. This is separate from the native `.build/debug-clang`, so both can coexist without conflicts.
+**NOTE:** Docker builds use the `docker-debug` preset, which builds into `.build/docker-debug-clang`. This is separate from the native `.build/debug-clang`, so both can coexist without conflicts. Use `verify-all.sh` natively and `docker-build.sh` for Docker, i.e.: don't mix them.
 
 ## Build Presets
 
