@@ -9,6 +9,52 @@
 #include "wjh/chat/json_convert.hpp"
 #include "wjh/chat/conversation/Message.hpp"
 
+#include <cstdio>
+#include <format>
+#include <string_view>
+
+namespace {
+
+constexpr bool DEBUG_COMMS = false;
+
+void debug_json(
+    std::string_view label,
+    nlohmann::json const & json)
+{
+    if constexpr (DEBUG_COMMS) {
+        std::fputs(
+            std::format(
+                "\n=== {} ===\n{}\n",
+                label,
+                json.dump(2))
+                .c_str(),
+            stderr);
+    }
+}
+
+nlohmann::json make_tools_json()
+{
+    return {{
+        {"type", "function"},
+        {"function",
+         {{"name", "bash"},
+          {"description",
+           "Execute a bash command. Use this to run "
+           "shell commands, read/write files, compile "
+           "code, run tests, etc."},
+          {"parameters",
+           {{"type", "object"},
+            {"properties",
+             {{"command",
+               {{"type", "string"},
+                {"description",
+                 "The bash command to execute"}}}}},
+            {"required", {"command"}}}}}}
+    }};
+}
+
+} // anonymous namespace
+
 namespace wjh::chat::client {
 
 OpenRouterClient::
@@ -55,6 +101,8 @@ build_request(conversation::Conversation const & conversation) const
             json_value(*config_.temperature);
     }
 
+    request["tools"] = make_tools_json();
+
     return request;
 }
 
@@ -86,13 +134,6 @@ parse_response(nlohmann::json const & json) const
         auto const & choice = json["choices"][0];
         auto const & message = choice.at("message");
 
-        // Extract text content
-        if (not message.contains("content") or message["content"].is_null()) {
-            return make_error("Response contains no text content");
-        }
-
-        auto text = message["content"].get<std::string>();
-
         // Extract token usage if present
         std::optional<TokenUsage> usage;
         if (json.contains("usage")) {
@@ -105,6 +146,32 @@ parse_response(nlohmann::json const & json) const
                 .total_tokens = TotalTokens{
                     u.value("total_tokens", 0u)}};
         }
+
+        // Check for tool calls
+        if (message.contains("tool_calls")
+            and not message["tool_calls"].empty())
+        {
+            std::string display;
+            for (auto const & tc : message["tool_calls"]) {
+                auto const & fn = tc["function"];
+                display +=
+                    "[Tool call] "
+                    + fn["name"].get<std::string>() + ": "
+                    + fn["arguments"].get<std::string>()
+                    + "\n";
+            }
+            return ChatResponse{
+                .response =
+                    AssistantResponse{std::move(display)},
+                .usage = std::move(usage)};
+        }
+
+        // Extract text content
+        if (not message.contains("content") or message["content"].is_null()) {
+            return make_error("Response contains no text content");
+        }
+
+        auto text = message["content"].get<std::string>();
 
         return ChatResponse{
             .response = AssistantResponse{std::move(text)},
@@ -119,6 +186,7 @@ OpenRouterClient::
 do_send_message(conversation::Conversation const & conversation)
 {
     auto request = build_request(conversation);
+    debug_json("request", request);
     auto request_body = request.dump();
 
     HttpHeaders headers{
@@ -165,6 +233,8 @@ do_send_message(conversation::Conversation const & conversation)
     } catch (nlohmann::json::parse_error const & e) {
         return make_error("Failed to parse response JSON: {}", e.what());
     }
+
+    debug_json("response", response_json);
 
     return parse_response(response_json);
 }

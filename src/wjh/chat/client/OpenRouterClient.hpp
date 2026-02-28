@@ -51,13 +51,6 @@ public:
         return config_.model;
     }
 
-private:
-    Result<ChatResponse> do_send_message(
-        conversation::Conversation const & conversation) override;
-
-    OpenRouterClientConfig config_;
-    HttpClient http_client_;
-
     /**
      * Build request JSON in OpenAI format.
      */
@@ -69,6 +62,13 @@ private:
      */
     Result<ChatResponse> parse_response(
         nlohmann::json const & json) const;
+
+private:
+    Result<ChatResponse> do_send_message(
+        conversation::Conversation const & conversation) override;
+
+    OpenRouterClientConfig config_;
+    HttpClient http_client_;
 
     /**
      * Convert messages to OpenAI format.
