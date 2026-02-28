@@ -103,6 +103,12 @@
       "displayName": "Release (alias for release-clang)",
       "inherits": "release-clang",
       "binaryDir": "${sourceDir}/.build/release-clang"
+    },
+    {
+      "name": "docker-debug",
+      "displayName": "Debug Clang in Docker",
+      "inherits": "debug-clang",
+      "binaryDir": "${sourceDir}/.build/docker-debug-clang"
     }
   ],
   "buildPresets": [
@@ -113,7 +119,8 @@
     { "name": "release-gcc-asan", "configurePreset": "release-gcc-asan" },
     { "name": "release-clang", "configurePreset": "release-clang" },
     { "name": "debug", "configurePreset": "debug" },
-    { "name": "release", "configurePreset": "release" }
+    { "name": "release", "configurePreset": "release" },
+    { "name": "docker-debug", "configurePreset": "docker-debug" }
   ],
   "testPresets": [
     {
@@ -161,6 +168,12 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 0 }
+    },
+    {
+      "name": "docker-debug",
+      "configurePreset": "docker-debug",
       "output": { "outputOnFailure": true },
       "execution": { "jobs": 0 }
     }
