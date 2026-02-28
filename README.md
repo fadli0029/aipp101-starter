@@ -54,6 +54,36 @@ A complete, working C++ chat application using the OpenRouter API. This is your 
 - `/clear` - Clear conversation history
 - `/help` - Show available commands
 
+## Docker
+
+A Docker image is provided with a full C++ development environment (compilers, tools, and Claude Code).
+
+1. Build the image:
+   ```bash
+   docker build -t aipp101 docker/
+   ```
+
+2. Build and test inside Docker:
+   ```bash
+   ./scripts/docker-build.sh
+   ```
+
+3. Or drop into an interactive Docker shell:
+   ```bash
+   ./scripts/docker-build.sh --shell
+   ```
+   Then build manually:
+   ```bash
+   cmake --preset docker-debug && cmake --build --preset docker-debug
+   ```
+
+4. Run the chat app inside Docker:
+   ```bash
+   .build/docker-debug-clang/src/wjh/apps/chat/chat_app
+   ```
+
+**NOTE:** Docker builds use the `docker-debug` preset, which builds into `.build/docker-debug-clang`. This is separate from the native `.build/debug-clang`, so both can coexist without conflicts.
+
 ## Build Presets
 
 | Preset | Compiler | Build Type | ASan |
@@ -64,6 +94,7 @@ A complete, working C++ chat application using the OpenRouter API. This is your 
 | `debug-clang` | Clang | Debug | ON |
 | `release-gcc` | GCC | Release | OFF |
 | `release-clang` | Clang | Release | ON |
+| `docker-debug` | Clang (Docker) | Debug | ON |
 
 ### Full Verification
 

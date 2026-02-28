@@ -5,3 +5,7 @@ build/
 # Environment configuration
 .env
 .env.local
+
+# Custom
+log.txt
+.clangd
