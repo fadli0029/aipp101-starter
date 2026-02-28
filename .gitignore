@@ -10,3 +10,4 @@ build/
 log.txt
 .clangd
 *.html
+AGENTS.md
