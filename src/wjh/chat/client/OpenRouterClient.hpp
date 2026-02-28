@@ -27,6 +27,7 @@ struct OpenRouterClientConfig
     ModelId model;
     MaxTokens max_tokens;
     std::optional<SystemPrompt> system_prompt;
+    std::optional<Temperature> temperature;
 };
 
 /**
@@ -51,7 +52,7 @@ public:
     }
 
 private:
-    Result<AssistantResponse> do_send_message(
+    Result<ChatResponse> do_send_message(
         conversation::Conversation const & conversation) override;
 
     OpenRouterClientConfig config_;
@@ -64,9 +65,17 @@ private:
         conversation::Conversation const & conversation) const;
 
     /**
-     * Parse response from OpenAI format to AssistantResponse.
+     * Parse response from OpenAI format to ChatResponse.
      */
-    Result<AssistantResponse> parse_response(nlohmann::json const & json) const;
+    Result<ChatResponse> parse_response(
+        nlohmann::json const & json) const;
+
+    /**
+     * Send a JSON request to the API and return parsed
+     * response JSON.
+     */
+    Result<nlohmann::json> send_api_request(
+        nlohmann::json const & request);
 
     /**
      * Convert messages to OpenAI format.
