@@ -117,6 +117,10 @@ function(create_wjh_compile_options_target)
             -Wno-defaulted-function-deleted
             -Wno-unsafe-buffer-usage
     )
+    check_cxx_compiler_flag(-Wno-nrvo HAS_WNO_NRVO)
+    if (HAS_WNO_NRVO)
+        list(APPEND CLANG_NO_WARNINGS -Wno-nrvo)
+    endif ()
 
     set(WARNINGS ${COMMON_WARNINGS})
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
