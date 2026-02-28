@@ -13,6 +13,7 @@
 
 #include <optional>
 #include <ostream>
+#include <filesystem>
 
 namespace wjh::chat {
 
@@ -25,6 +26,7 @@ struct Config
     ModelId model;
     MaxTokens max_tokens;
     std::optional<SystemPrompt> system_prompt;
+    std::optional<Temperature> temperature;
     ShowConfig show_config;
 };
 
@@ -55,6 +57,15 @@ Result<Config> resolve_config(CommandLineArgs const & args);
  * Print the resolved configuration.
  */
 void print_config(Config const & config, std::ostream & out);
+
+/**
+ * Load AGENTS.md from the given directory and append its
+ * contents (wrapped in system-reminder tags) to the system
+ * prompt in the given configuration.
+ */
+void append_agents_file(
+    Config & config,
+    std::filesystem::path const & dir = ".");
 
 } // namespace wjh::chat
 

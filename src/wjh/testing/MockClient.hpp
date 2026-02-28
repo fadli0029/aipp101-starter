@@ -29,9 +29,19 @@ public:
     ~MockClient() override;
 
     /**
-     * Queue a successful response.
+     * Queue a successful response (convenience overload).
      */
     void queue_response(wjh::chat::AssistantResponse response)
+    {
+        results_.push(wjh::chat::ChatResponse{
+            .response = std::move(response),
+            .usage = std::nullopt});
+    }
+
+    /**
+     * Queue a successful ChatResponse with usage.
+     */
+    void queue_response(wjh::chat::ChatResponse response)
     {
         results_.push(std::move(response));
     }
@@ -63,10 +73,10 @@ public:
     }
 
 private:
-    wjh::chat::Result<wjh::chat::AssistantResponse> do_send_message(
+    wjh::chat::Result<wjh::chat::ChatResponse> do_send_message(
         wjh::chat::conversation::Conversation const & conversation) override;
 
-    std::queue<wjh::chat::Result<wjh::chat::AssistantResponse>> results_;
+    std::queue<wjh::chat::Result<wjh::chat::ChatResponse>> results_;
     std::unique_ptr<wjh::chat::conversation::Conversation> last_conversation_;
     std::size_t call_count_ = 0;
 };

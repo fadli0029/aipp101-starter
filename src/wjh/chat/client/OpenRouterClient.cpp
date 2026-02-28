@@ -45,10 +45,17 @@ nlohmann::json
 OpenRouterClient::
 build_request(conversation::Conversation const & conversation) const
 {
-    return {
+    auto request = nlohmann::json{
         {"model", json_value(config_.model)},
         {"max_tokens", json_value(config_.max_tokens)},
         {"messages", convert_messages_to_openai(conversation)}};
+
+    if (config_.temperature) {
+        request["temperature"] =
+            json_value(*config_.temperature);
+    }
+
+    return request;
 }
 
 conversation::StopReason
@@ -67,7 +74,7 @@ map_stop_reason(FinishReason const & finish_reason)
     return conversation::StopReason(atlas::undress(finish_reason));
 }
 
-Result<AssistantResponse>
+Result<ChatResponse>
 OpenRouterClient::
 parse_response(nlohmann::json const & json) const
 {
@@ -80,18 +87,33 @@ parse_response(nlohmann::json const & json) const
         auto const & message = choice.at("message");
 
         // Extract text content
-        if (message.contains("content") and not message["content"].is_null()) {
-            auto text = message["content"].get<std::string>();
-            return AssistantResponse{std::move(text)};
+        if (not message.contains("content") or message["content"].is_null()) {
+            return make_error("Response contains no text content");
         }
 
-        return make_error("Response contains no text content");
+        auto text = message["content"].get<std::string>();
+
+        std::optional<TokenUsage> usage;
+        if (json.contains("usage")) {
+            auto const & u = json["usage"];
+            usage = TokenUsage{
+                .prompt_tokens = PromptTokens{
+                    u.value("prompt_tokens", 0u)},
+                .completion_tokens = CompletionTokens{
+                    u.value("completion_tokens", 0u)},
+                .total_tokens = TotalTokens{
+                    u.value("total_tokens", 0u)}};
+        }
+
+        return ChatResponse{
+            .response = AssistantResponse{std::move(text)},
+            .usage = std::move(usage)};
     } catch (nlohmann::json::exception const & e) {
         return make_error("Failed to parse API response: {}", e.what());
     }
 }
 
-Result<AssistantResponse>
+Result<ChatResponse>
 OpenRouterClient::
 do_send_message(conversation::Conversation const & conversation)
 {

@@ -8,6 +8,7 @@
 #define WJH_CHAT_5FD39B99AAA445C9B2ADEF44D94D2866
 
 #include "wjh/chat/Result.hpp"
+#include "wjh/chat/TokenUsage.hpp"
 #include "wjh/chat/types.hpp"
 #include "wjh/chat/conversation/Conversation.hpp"
 
@@ -32,14 +33,14 @@ public:
      * @return Assistant response text or error
      */
     [[nodiscard]]
-    Result<AssistantResponse> send_message(
+    Result<ChatResponse> send_message(
         conversation::Conversation const & conversation)
     {
         return do_send_message(conversation);
     }
 
 private:
-    virtual Result<AssistantResponse> do_send_message(
+    virtual Result<ChatResponse> do_send_message(
         conversation::Conversation const & conversation) = 0;
 };
 

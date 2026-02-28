@@ -27,6 +27,7 @@ struct CommandLineArgs
     std::optional<ModelId> model;
     std::optional<SystemPrompt> system_prompt;
     std::optional<MaxTokens> max_tokens;
+    std::optional<Temperature> temperature;
     ShowConfig show_config;
     ShowHelp help;
 };

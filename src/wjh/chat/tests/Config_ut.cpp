@@ -6,8 +6,14 @@
 // ----------------------------------------------------------------------
 #define DOCTEST_CONFIG_ASSERTS_RETURN_VALUES
 #include "wjh/chat/Config.hpp"
+#include "wjh/chat/json_convert.hpp"
 
 #include <cstdlib>
+#include <filesystem>
+#include <format>
+#include <fstream>
+
+#include <unistd.h>
 
 #include "testing/doctest.hpp"
 
@@ -47,6 +53,51 @@ struct EnvGuard
     EnvGuard & operator = (EnvGuard const &) = delete;
 };
 
+// RAII helper that creates a temporary directory and
+// removes it (with contents) on destruction.
+struct TempDir
+{
+    std::filesystem::path path_;
+
+    TempDir()
+    : path_(std::filesystem::temp_directory_path()
+          / "wjh_chat_test_XXXXXX")
+    {
+        auto tmpl = path_.string();
+        auto * result = mkdtemp(tmpl.data());
+        REQUIRE(result != nullptr);
+        path_ = result;
+    }
+
+    ~TempDir()
+    {
+        std::filesystem::remove_all(path_);
+    }
+
+    void write_file(
+        std::string const & name,
+        std::string const & content) const
+    {
+        std::ofstream out(path_ / name);
+        out << content;
+    }
+
+    TempDir(TempDir const &) = delete;
+    TempDir & operator = (TempDir const &) = delete;
+};
+
+Config
+make_test_config()
+{
+    return Config{
+        .api_key = ApiKey{"sk-test-key"},
+        .model = ModelId{"test/model"},
+        .max_tokens = MaxTokens{1024u},
+        .system_prompt = std::nullopt,
+        .temperature = std::nullopt,
+        .show_config = ShowConfig{false}};
+}
+
 TEST_SUITE("Config")
 {
     TEST_CASE("resolve_config: missing API key returns error")
@@ -75,6 +126,7 @@ TEST_SUITE("Config")
         EnvGuard model_guard("LLM_MODEL", nullptr);
         EnvGuard tokens_guard("MAX_TOKENS", nullptr);
         EnvGuard prompt_guard("SYSTEM_PROMPT", nullptr);
+        EnvGuard temp_guard("TEMPERATURE", nullptr);
         CommandLineArgs args;
         auto result = resolve_config(args);
 
@@ -90,6 +142,7 @@ TEST_SUITE("Config")
         EnvGuard model_guard("LLM_MODEL", "openai/gpt-4");
         EnvGuard tokens_guard("MAX_TOKENS", "2048");
         EnvGuard prompt_guard("SYSTEM_PROMPT", "Be helpful");
+        EnvGuard temp_guard("TEMPERATURE", nullptr);
         CommandLineArgs args;
         auto result = resolve_config(args);
 
@@ -125,6 +178,41 @@ TEST_SUITE("Config")
         CHECK(result->show_config == ShowConfig{true});
     }
 
+    TEST_CASE("resolve_config: TEMPERATURE from env")
+    {
+        EnvGuard key_guard("OPENROUTER_API_KEY", "sk-test");
+        EnvGuard temp_guard("TEMPERATURE", "0.5");
+        CommandLineArgs args;
+        auto result = resolve_config(args);
+
+        REQUIRE(result.has_value());
+        REQUIRE(result->temperature.has_value());
+        CHECK(static_cast<double>(json_value(*result->temperature)) == doctest::Approx(0.5));
+    }
+
+    TEST_CASE("resolve_config: CLI temperature overrides env")
+    {
+        EnvGuard key_guard("OPENROUTER_API_KEY", "sk-test");
+        EnvGuard temp_guard("TEMPERATURE", "0.5");
+        CommandLineArgs args;
+        args.temperature = Temperature{0.9f};
+        auto result = resolve_config(args);
+
+        REQUIRE(result.has_value());
+        REQUIRE(result->temperature.has_value());
+        CHECK(static_cast<double>(json_value(*result->temperature)) == doctest::Approx(0.9));
+    }
+
+    TEST_CASE("resolve_config: invalid TEMPERATURE in env")
+    {
+        EnvGuard key_guard("OPENROUTER_API_KEY", "sk-test");
+        EnvGuard temp_guard("TEMPERATURE", "not_a_number");
+        CommandLineArgs args;
+        auto result = resolve_config(args);
+
+        CHECK_FALSE(result.has_value());
+    }
+
     TEST_CASE("resolve_config: invalid MAX_TOKENS")
     {
         EnvGuard key_guard("OPENROUTER_API_KEY", "sk-test");
@@ -133,6 +221,87 @@ TEST_SUITE("Config")
         auto result = resolve_config(args);
 
         CHECK_FALSE(result.has_value());
+    }
+
+    TEST_CASE("append_agents_file: no file leaves config "
+              "unchanged")
+    {
+        TempDir dir;
+        auto config = make_test_config();
+
+        append_agents_file(config, dir.path_);
+
+        CHECK_FALSE(config.system_prompt.has_value());
+    }
+
+    TEST_CASE("append_agents_file: no file preserves "
+              "existing system prompt")
+    {
+        TempDir dir;
+        auto config = make_test_config();
+        config.system_prompt =
+            SystemPrompt{"existing prompt"};
+
+        append_agents_file(config, dir.path_);
+
+        REQUIRE(config.system_prompt.has_value());
+        CHECK(*config.system_prompt
+              == SystemPrompt{"existing prompt"});
+    }
+
+    TEST_CASE("append_agents_file: sets system prompt "
+              "from file content")
+    {
+        TempDir dir;
+        dir.write_file(
+            "AGENTS.md", "# Test Instructions\nDo X.");
+        auto config = make_test_config();
+
+        append_agents_file(config, dir.path_);
+
+        REQUIRE(config.system_prompt.has_value());
+        auto prompt =
+            std::format("{}", *config.system_prompt);
+
+        CHECK(prompt.starts_with("<system-reminder>"));
+        CHECK(prompt.ends_with("</system-reminder>"));
+        CHECK(prompt.find("# Test Instructions\nDo X.")
+              != std::string::npos);
+    }
+
+    TEST_CASE("append_agents_file: appends to existing "
+              "system prompt")
+    {
+        TempDir dir;
+        dir.write_file("AGENTS.md", "Agent rules here.");
+        auto config = make_test_config();
+        config.system_prompt =
+            SystemPrompt{"You are helpful."};
+
+        append_agents_file(config, dir.path_);
+
+        REQUIRE(config.system_prompt.has_value());
+        auto prompt =
+            std::format("{}", *config.system_prompt);
+
+        CHECK(prompt.starts_with("You are helpful."));
+        auto wrapped_pos =
+            prompt.find("<system-reminder>");
+        REQUIRE(wrapped_pos != std::string::npos);
+        CHECK(prompt.find("Agent rules here.")
+              != std::string::npos);
+    }
+
+    TEST_CASE("append_agents_file: empty file leaves "
+              "config unchanged")
+    {
+        TempDir dir;
+        dir.write_file("AGENTS.md", "");
+        auto config = make_test_config();
+
+        append_agents_file(config, dir.path_);
+
+        CHECK_FALSE(config.system_prompt.has_value());
     }
 }
 

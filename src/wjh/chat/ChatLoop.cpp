@@ -88,7 +88,72 @@ handle_builtin_command(std::string_view cmd)
 
     if (cmd == "/clear") {
         conversation_.clear();
+        usage_history_.clear();
         out_ << "Conversation cleared.\n\n";
+        return CommandResult::handled;
+    }
+
+    if (cmd == "/usage all") {
+        if (usage_history_.empty()) {
+            out_ << "No usage data recorded.\n\n";
+            return CommandResult::handled;
+        }
+
+        out_ << "Per-turn token usage:\n";
+        for (std::size_t i = 0; i < usage_history_.size(); ++i) {
+            auto const & u = usage_history_[i];
+            out_ << std::format(
+                "  Turn {}: prompt={}, completion={}, total={}\n",
+                i + 1,
+                json_value(u.prompt_tokens),
+                json_value(u.completion_tokens),
+                json_value(u.total_tokens));
+        }
+        out_ << "\n";
+
+        auto cumulative = TokenUsage{};
+        for (auto const & u : usage_history_) {
+            cumulative.prompt_tokens += u.prompt_tokens;
+            cumulative.completion_tokens += u.completion_tokens;
+            cumulative.total_tokens += u.total_tokens;
+        }
+
+        out_ << std::format(
+            "Token usage ({} turn{}):\n"
+            "  Prompt:     {}\n"
+            "  Completion: {}\n"
+            "  Total:      {}\n\n",
+            usage_history_.size(),
+            usage_history_.size() == 1 ? "" : "s",
+            json_value(cumulative.prompt_tokens),
+            json_value(cumulative.completion_tokens),
+            json_value(cumulative.total_tokens));
+        return CommandResult::handled;
+    }
+
+    if (cmd == "/usage") {
+        if (usage_history_.empty()) {
+            out_ << "No usage data recorded.\n\n";
+            return CommandResult::handled;
+        }
+
+        auto cumulative = TokenUsage{};
+        for (auto const & u : usage_history_) {
+            cumulative.prompt_tokens += u.prompt_tokens;
+            cumulative.completion_tokens += u.completion_tokens;
+            cumulative.total_tokens += u.total_tokens;
+        }
+
+        out_ << std::format(
+            "Token usage ({} turn{}):\n"
+            "  Prompt:     {}\n"
+            "  Completion: {}\n"
+            "  Total:      {}\n\n",
+            usage_history_.size(),
+            usage_history_.size() == 1 ? "" : "s",
+            json_value(cumulative.prompt_tokens),
+            json_value(cumulative.completion_tokens),
+            json_value(cumulative.total_tokens));
         return CommandResult::handled;
     }
 
@@ -96,6 +161,8 @@ handle_builtin_command(std::string_view cmd)
         out_ << "Commands:\n"
             << "  /exit, /quit  Exit the chat\n"
             << "  /clear        Clear conversation history\n"
+            << "  /usage        Show cumulative token usage\n"
+            << "  /usage all    Show per-turn token usage\n"
             << "  /help         Show this help\n\n";
         return CommandResult::handled;
     }
@@ -148,9 +215,14 @@ do_process_input(UserInput input)
         return;
     }
 
-    auto const & response = *result;
-    do_display_response(response);
-    conversation_.add_message(response);
+    auto & chat_response = *result;
+
+    if (chat_response.usage) {
+        usage_history_.push_back(*chat_response.usage);
+    }
+
+    do_display_response(chat_response.response);
+    conversation_.add_message(chat_response.response);
 }
 
 void
@@ -197,19 +269,22 @@ run(int argc, char * argv[])
         return ExitCode::error;
     }
 
-    auto const & config = *config_result;
+    auto config = std::move(*config_result);
 
     if (config.show_config) {
         print_config(config, std::cout);
         return ExitCode::success;
     }
 
+    append_agents_file(config);
+
     auto client = std::make_unique<client::OpenRouterClient>(
         client::OpenRouterClientConfig{
             .api_key = config.api_key,
             .model = config.model,
             .max_tokens = config.max_tokens,
-            .system_prompt = config.system_prompt});
+            .system_prompt = config.system_prompt,
+            .temperature = config.temperature});
 
     return run(config, std::move(client), std::cin, std::cout);
 }
