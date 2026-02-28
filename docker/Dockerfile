@@ -58,7 +58,9 @@ RUN apt-get update && apt-get install -y \
     # Version control
     git \
     # Utilities
+    ca-certificates \
     curl \
+    gnupg \
     wget \
     jq \
     bash \
@@ -76,6 +78,7 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
 
 # -----------------------------------------------------------------------------
 # Update to the timezone (in TZ from above)
@@ -125,6 +128,18 @@ RUN mkdir -p /home/$USERNAME/.local/bin
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/$USERNAME/.local/bin:$PATH"
 RUN claude --version
+
+# -----------------------------------------------------------------------------
+# Install GitHub Copilot and stuff it needs
+# ----------------------------------------------------------------------------- 
+# Use a local prefix for global npm installs
+ENV NPM_CONFIG_PREFIX=/home/$USERNAME/.npm-global
+RUN mkdir -p /home/$USERNAME/.npm-global/bin
+# Add local bin to PATH
+ENV PATH="/home/$USERNAME/.npm-global/bin:${PATH}"
+# Now global installs go into ~/.npm-global
+RUN npm install -g @github/copilot
+RUN node --version && npm --version && copilot --version
 
 # -----------------------------------------------------------------------------
 # Set up workspace
