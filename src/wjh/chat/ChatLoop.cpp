@@ -271,12 +271,12 @@ run(int argc, char * argv[])
 
     auto config = std::move(*config_result);
 
+    append_agents_file(config);
+
     if (config.show_config) {
         print_config(config, std::cout);
         return ExitCode::success;
     }
-
-    append_agents_file(config);
 
     auto client = std::make_unique<client::OpenRouterClient>(
         client::OpenRouterClientConfig{
