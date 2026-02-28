@@ -5,6 +5,7 @@ build/
 # Environment configuration
 .env
 .env.local
+AGENTS.md
 
 # Custom
 log.txt
