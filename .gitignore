@@ -8,3 +8,5 @@ build/
 
 # Custom
 log.txt
+.clangd
+*.html
