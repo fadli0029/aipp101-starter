@@ -14,6 +14,31 @@ that describes fictional tools to the model, then manually play the role of the
 paste the result back. This is literally how tool calling works under the hood,
 minus the automation.
 
+### Important: single-line input
+
+The chat app reads one line at a time. You cannot paste multi-line content
+directly. When you need to feed tool results back to the model, you have two
+options:
+
+**Option A -- Summarize on one line.** For directory listings and short
+results, just type a condensed version:
+
+```
+You> Result: CMakeLists.txt CMakePresets.json AGENTS.md src/ docs/ .env
+```
+
+**Option B -- Use the helper script.** For file contents, use the provided
+`scripts/tool-result.sh` script to pipe a file into the chat app's stdin.
+Or just run it in a separate terminal to get a one-liner you can paste:
+
+```bash
+# Print a one-line summary you can copy-paste into the chat
+scripts/tool-result.sh read_file src/wjh/chat/Config.hpp
+scripts/tool-result.sh list_files src/wjh/chat/
+```
+
+We will create this script in the setup section below.
+
 ---
 
 ## Part 1 -- Teach the model about tools
@@ -49,6 +74,48 @@ Returns: confirmation that the file was written.
 - Do NOT guess directory contents. If you need to see what's there, use list_files.
 ```
 
+### Create the helper script
+
+Create `scripts/tool-result.sh`:
+
+```bash
+mkdir -p scripts
+cat > scripts/tool-result.sh << 'SCRIPT'
+#!/usr/bin/env bash
+# Format a tool result as a single line for pasting into chat_app.
+#
+# Usage:
+#   scripts/tool-result.sh list_files <directory>
+#   scripts/tool-result.sh read_file <file>
+
+set -euo pipefail
+
+tool="${1:?Usage: tool-result.sh <tool_name> <path>}"
+path="${2:?Usage: tool-result.sh <tool_name> <path>}"
+
+case "$tool" in
+    list_files)
+        entries=$(ls -1 "$path" | tr '\n' ' ')
+        echo "Result of list_files(\"$path\"): $entries"
+        ;;
+    read_file)
+        # Collapse the file to a single line with \n markers
+        content=$(sed 's/$/  \\n/' "$path" | tr -d '\n')
+        echo "Result of read_file(\"$path\"): $content"
+        ;;
+    *)
+        echo "Unknown tool: $tool" >&2
+        exit 1
+        ;;
+esac
+SCRIPT
+chmod +x scripts/tool-result.sh
+```
+
+This collapses file contents onto a single line (with `\n` markers) so you
+can paste it into the chat. The model is smart enough to reconstruct the
+original structure.
+
 Now start the chat app:
 
 ```bash
@@ -72,11 +139,18 @@ It might output something like:
 TOOL_CALL: list_files(".")
 ```
 
-Now **you** play the agent loop. Run `ls` in your terminal, copy the output,
-and paste it back into the chat:
+Now **you** play the agent loop. In a second terminal, run `ls` (or use the
+helper script), then paste the result back as a single line:
 
 ```
-You> Result of list_files("."): CMakeLists.txt CMakePresets.json AGENTS.md src/ docs/ ...
+You> Result of list_files("."): CMakeLists.txt CMakePresets.json AGENTS.md src/ docs/ .env
+```
+
+Or using the helper:
+```bash
+# In your other terminal:
+scripts/tool-result.sh list_files .
+# Copy the output line and paste it into the chat
 ```
 
 The model should now reason about what it sees and potentially ask for more --
@@ -96,9 +170,21 @@ The model should output:
 TOOL_CALL: read_file("src/wjh/chat/Config.hpp")
 ```
 
-Run `cat src/wjh/chat/Config.hpp` in another terminal, copy the output, and
-paste it back. The model should then explain the file accurately -- because it
-is working from *real* data, not hallucinated guesses.
+In your other terminal, run the helper script:
+```bash
+scripts/tool-result.sh read_file src/wjh/chat/Config.hpp
+```
+
+Copy the output line and paste it back into the chat. The model should then
+explain the file accurately -- because it is working from *real* data, not
+hallucinated guesses.
+
+For short files, you can also just summarize: `Result: it defines a Config
+struct with api_key, model, max_tokens, system_prompt, temperature fields
+and functions resolve_config, print_config, append_agents_file.`
+
+Either way works. The point is giving the model real information instead of
+letting it guess.
 
 ### 2c -- Ask it for a directory listing
 
@@ -106,8 +192,12 @@ is working from *real* data, not hallucinated guesses.
 You> What files are in the test directory?
 ```
 
-Give it the real output of `ls src/wjh/chat/tests/`. Watch it reason about
-what tests exist.
+In your other terminal:
+```bash
+scripts/tool-result.sh list_files src/wjh/chat/tests/
+```
+
+Paste the result. Watch it reason about what tests exist.
 
 ### 2d -- Try write_file (but be careful!)
 

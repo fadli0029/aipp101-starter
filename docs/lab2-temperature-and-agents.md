@@ -63,15 +63,12 @@ OpenRouterClientConfig.temperature  (std::optional<Temperature>)
 API request JSON: {"temperature": 0.7, ...}
 ```
 
-### Choose your path
-
-<details>
-<summary><strong>Hard -- just the requirements</strong></summary>
+### Choose your path: Hard -- just the requirements
 
 Add a `Temperature` strong type (float, no special features needed) and wire
 it through the full stack:
 
-1. Define the type in `types.atlas` and regenerate `types_gen.hpp`.
+1. Define the type in `types.atlas` and regenerate `types_gen.hpp` (cmake --build --preset debug)
 2. Add `--temperature <value>` to CLI parsing. Validate it is a valid float.
 3. Add `temperature` to `Config` and resolve it: CLI > `TEMPERATURE` env > none.
 4. Show it in `print_config` when present.
@@ -88,10 +85,8 @@ Hint: look at how `system_prompt` and `max_tokens` are handled -- temperature
 follows the same pattern, but it is a float parsed with `std::strtof` instead
 of `std::from_chars`.
 
-</details>
 
-<details>
-<summary><strong>Medium -- guided implementation</strong></summary>
+### Choose your path: Medium -- guided implementation
 
 #### Files you will modify
 
@@ -147,10 +142,8 @@ of `std::from_chars`.
 
 6. **Update help text** in `CommandLine.cpp` to list the new flag and env var.
 
-</details>
 
-<details>
-<summary><strong>Easy -- step-by-step walkthrough</strong></summary>
+### Choose your path: Easy -- step-by-step walkthrough
 
 Follow these steps in order. Build after each step to let the compiler guide
 you.
@@ -369,7 +362,6 @@ Add to `Config_ut.cpp`:
 - CLI temperature overrides env temperature
 - Invalid `TEMPERATURE` in env -- should error
 
-</details>
 
 ---
 
@@ -409,10 +401,7 @@ IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow 
 - If there is already a system prompt (from `-s` or `SYSTEM_PROMPT` env):
   append the wrapped content after the existing prompt, separated by `\n`.
 
-### Choose your path
-
-<details>
-<summary><strong>Hard -- just the requirements</strong></summary>
+### Choose your path: Hard -- just the requirements
 
 Write a function `append_agents_file(Config&, path)` that:
 
@@ -432,10 +421,8 @@ Write thorough tests:
 - Empty file -- config unchanged
 - Verify wrapper tag structure
 
-</details>
 
-<details>
-<summary><strong>Medium -- guided implementation</strong></summary>
+### Choose your path: Medium -- guided implementation
 
 #### Files you will modify
 
@@ -466,10 +453,8 @@ Write thorough tests:
    directory and cleans it up. Write a `write_file` method on it. Then test
    each scenario by creating (or not) an `AGENTS.md` in that temp dir.
 
-</details>
 
-<details>
-<summary><strong>Easy -- step-by-step walkthrough</strong></summary>
+### Choose your path: Easy -- step-by-step walkthrough
 
 #### Step 1: Declare append_agents_file
 
@@ -714,8 +699,6 @@ Build and run:
 ```bash
 cmake --build --preset debug && ctest --preset debug
 ```
-
-</details>
 
 ---
 
